@@ -1,0 +1,28 @@
+networks:
+  agno_net:
+    name: agno_net
+    driver: bridge
+
+volumes:
+  agno_pgdata:
+
+services:
+  agno_postgres_database:
+    image: timescale/timescaledb-ha:pg17.9-ts2.26.1
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB__DATABASE_NAME:-postgres}
+      POSTGRES_USER: ${DB__USER:-postgres}
+      POSTGRES_PASSWORD: $DB__PASSWORD
+    ports:
+      - "${DB__PORT:-5432}:5432"
+    volumes:
+      - ${DB__VOLUME:-agno_pgdata}:/var/lib/postgresql/data
+    networks:
+      - agno_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d ${DB__DATABASE_NAME:-postgres} -p ${DB__PORT:-5432} -U ${DB__USER:-postgres}" ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 15s

@@ -1,0 +1,55 @@
+[project]
+name = "agno-learn-os"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "agno>=2.6.22",
+    "arxiv>=4.0.0",
+    "ddgs>=9.14.4",
+    "openai>=2.44.0",
+    "pgvector>=0.5.0",
+    "psycopg>=3.3.4",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.2",
+    "pygithub>=2.9.1",
+    "pypdf>=6.14.2",
+    "sqlalchemy>=2.0.51",
+    "youtube-transcript-api>=1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "ruff>=0.15.20",
+    "ty>=0.0.56",
+    "vulture>=2.16",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "B",         # bugbear (mutable defaults, useless expressions)
+    "UP",        # pyupgrade (keeps typing syntax modern automatically)
+    "SIM",       # simplify
+    "C4",        # comprehensions
+    "RET",       # return statements
+    "ARG",       # unused arguments
+    "PTH",       # enforce pathlib over os.path
+    "DTZ",       # naive datetime detection
+    "S",         # bandit security checks
+    "N",         # naming (snake_case funcs, PascalCase classes)
+    "RUF",       # ruff-specific
+]
+ignore = [
+    "E501",      # line length — ruff format owns it
+    "S101",      # assert is fine in tests
+    "N802",     # allows uppercasing in function names
+]
