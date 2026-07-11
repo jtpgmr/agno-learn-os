@@ -1,110 +1,103 @@
 import asyncio
-from pathlib import Path
 from textwrap import dedent
+from typing import Any
 from uuid import uuid4
 
 from agno.agent import Agent
-from agno.skills import LocalSkills, SkillLoader, Skills
+from agno.skills import Skills
 from agno.tools import Toolkit
+from agno.tools.arxiv import ArxivTools
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.exa import ExaTools
 from agno.tools.github import GithubTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.reasoning import ReasoningTools
-from agno.tools.workspace import Workspace
+from agno.tools.workspace import Workspace as WorkspaceTools
+
+from src.core import AppSettings, getDatabase, getResponseModel, getSettings
+from src.core.utils.agent import chatWithAgent, excludeTools, getAgentSkills, getSessionWorkspace
+from src.tools import DevToTools
 
 # TODO: Tools and features to explore and implement
+# from agno.tools.websearch import WebSearchTools
 # from agno.tools.youtube import YouTubeTools
-# from agno.tools.arxiv import ArxivTools
 # from agno.learn import LearningMachine
 # from agno.tools.knowledge import Knowledge as KnowledgeTools
 # from agno.knowledge import Knowledge
 # from agno.tools.memory import MemoryTools
 # from agno.tools.postgres import PostgresTools
 # from agno.memory import MemoryManager, UserMemory
-from src.core import AppSettings, chatWithAgent, getDatabase, getResponseModel, getSettings
-from src.tools import DevToTools
+# from agno.tools.email import EmailTools
 
 
-def getSessionWorkspace(
-    path: str | Path, session_id: str | None = None, permissions: list[str] | None = None
-) -> Workspace:
-    if isinstance(path, str):
-        path = Path(path)
-
-    workspace_dir = path / "workspaces" / (session_id or str(uuid4()))
-    workspace_dir.mkdir(parents=True, exist_ok=True)
-
-    allowed_permissions = (
-        Workspace.ALL_TOOLS
-        if not permissions
-        else list(set(filter(lambda x: x in Workspace.ALL_TOOLS, permissions)))
-    )
-
-    return Workspace(root=workspace_dir, allowed=allowed_permissions)
-
-
-def getAgentSkills(path: str | Path) -> Skills:
-    if isinstance(path, str):
-        path = Path(path)
-
-    skills_dir: Path = path / "skills"
-    skills_dir.mkdir(parents=True, exist_ok=True)
-
-    skills_collection: list[SkillLoader] = [LocalSkills(str(skills_dir))]
-
-    return Skills(skills_collection)
-
-
-def buildSoftwareNewsFinder(settings: AppSettings, session_id: str | None = None) -> Agent:
+def buildSoftwareNewsFinder(
+    settings: AppSettings, session_id: str | None = None, *, read_only=True, allow_delete=False
+) -> Agent:
     skills: Skills | None = None
 
+    # TODO: Implement a better way of administering read/write/delete permissions for each toolkit
+    allowed_tools: dict[type[Toolkit], dict[str, Any]] = {}
+    tool_call_limit = 30
+
     # TODO: add a client-side logger for displaying details such as tool configuration
-    tools: list[Toolkit] = [DuckDuckGoTools(fixed_max_results=5), DevToTools(), HackerNewsTools()]
-
-    reasoning_tools = ReasoningTools(
-        instructions=dedent("""
-        Before finalizing any research brief, reason explicitly:
-        1. State what claim each source supports and its tier (docs/repo >
-           engineering blog > dev.to > generic web).
-        2. Check for conflict between the two search toolkits (Exa vs Tavily).
-           If they disagree, note the disagreement and which has stronger evidence.
-        3. List what is still missing or stale (>N days).
-        4. Only then conclude a ranked, de-duplicated brief.
-    """),
-        add_instructions=True,
-    )
-
-    tools.append(reasoning_tools)
-
-    # Optionally pair with ThinkingTools for hard decomposition (e.g. planning the
-    # research, not just analyzing results):
-    # think = ThinkingTools(add_instructions=True)
-
-    if settings.tools.github_access_token:
-        tools.append(
-            GithubTools(access_token=settings.tools.github_access_token.get_secret_value())
-        )
+    tools: list[Toolkit] = [
+        DuckDuckGoTools(),
+        DevToTools(),
+        HackerNewsTools(),
+        ReasoningTools(
+            instructions=dedent("""
+                Before finalizing any research brief, reason explicitly:
+                1. State what claim each source supports and its tier (docs/repo >
+                engineering blog > dev.to > generic web).
+                2. Check for conflict between the two search toolkits (Exa vs Tavily).
+                If they disagree, note the disagreement and which has stronger evidence.
+                3. List what is still missing or stale (>N days).
+                4. Only then conclude a ranked, de-duplicated brief.
+            """),
+            add_instructions=True,
+        ),
+    ]
 
     if settings.tools.exa_api_key:
-        tools.append(ExaTools(api_key=settings.tools.exa_api_key.get_secret_value()))
+        tools.append(ExaTools(api_key=settings.tools.exa_api_key.get_secret_value(), all=True))
 
-    if settings.ai.context_path:
-        tools.append(getSessionWorkspace(settings.ai.context_path, session_id))
+    if settings.tools.github_access_token:
+        allowed_tools[GithubTools] = {
+            "access_token": settings.tools.github_access_token.get_secret_value()
+        }
 
-        skills = getAgentSkills(settings.ai.context_path)
+    if settings.project_path:
+        skills = getAgentSkills(settings.project_path)
+
+    if settings.docs_path:
+        tools.append(ArxivTools(all=True, download_dir=settings.docs_path))
+
+    if settings.ai.session_data_path:
+        workspace: WorkspaceTools = getSessionWorkspace(
+            settings.ai.session_data_path,
+            session_id,
+            read_only=read_only,  # set `read_only` to False to allow writing to the workspace folder
+        )
+        tools.append(workspace)
+
+    if allowed_tools:
+        for tool_kit, params in allowed_tools.items():
+            filtered_toolkit: Toolkit = excludeTools(
+                tool_kit=tool_kit(**params), read_only=read_only, allow_delete=allow_delete
+            )
+
+            tools.append(filtered_toolkit)
 
     return Agent(
-        name="Tech News Finder",
-        id="tech-news-finder",
-        role=("Finds written tutorials and articles on Github and dev.to and engineering blogs."),
+        name="Feature test agent",
+        id="feature-test-agent",
+        role="Finds written tutorials and articles on Github and dev.to and engineering blogs.",
         model=getResponseModel(),
         tools=tools,
-        tool_call_limit=30,
+        tool_call_limit=tool_call_limit,
         skills=skills,
         instructions=[
-            # Use GitHub tools only when a valid token is configured.
-            dedent("""
+            dedent(f"""
             You are a tech news finder/researcher, whose purpose is to keep me up-to-date with the latest in tech, including
             AI, webdev (across the stack), DevOps, database use and administration, data analysis, robotics, hardware,
             engineering, security, networking, IT and more.
@@ -126,7 +119,9 @@ def buildSoftwareNewsFinder(settings: AppSettings, session_id: str | None = None
 
             Always provide references in APA format at the end of responses and confirm the validity and accuracy of
             the data retrieved from sources, before making a final output.
-            """)
+
+            Make sure that your the amount of tools you call/use falls within your limit of {tool_call_limit} calls.
+        """)
         ],
         db=getDatabase(db_url=settings.db.dsn, create_schema=True),
         add_history_to_context=True,  # allows retrieving session context from db
@@ -152,8 +147,10 @@ if __name__ == "__main__":
     settings = getSettings()
     db = getDatabase(db_url=settings.db.dsn, create_schema=True)
 
-    session_id = str(uuid4())
+    session_id: str = str(settings.feature_test.session_id or uuid4())
+
     print("The current session id is:\t", session_id)
 
     agent = buildSoftwareNewsFinder(settings, session_id)
+
     asyncio.run(chatWithAgent(agent, session_id=session_id))

@@ -1,3 +1,3 @@
 from .devto import DevToClient
 
-__all__ = [DevToClient]
+__all__ = ["DevToClient"]

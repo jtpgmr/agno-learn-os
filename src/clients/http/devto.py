@@ -77,7 +77,7 @@ class DevToClient:
         return await self._http.call(endpoint, params=params)
 
     async def searchArticles(
-        self, tag: str, top_days: int = 30, per_page: int = 10, **kwargs: dict
+        self, tag: str, top_days: int = 30, per_page: int = 10
     ) -> list[DevToArticle]:
         """Return the most-reacted articles for a tag over the look-back window."""
         response = await self._get(

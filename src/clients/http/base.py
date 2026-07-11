@@ -50,10 +50,10 @@ class HttpClientError(Exception):
 
 
 class APIAuthInterface(Protocol):
-    def getAccessToken(self) -> str:
+    def getAccessToken(self):
         pass
 
-    async def getNewAccessToken(self) -> str:
+    async def getNewAccessToken(self):
         """Return a currently-valid access token (refreshing if needed)."""
         pass
 
@@ -82,8 +82,6 @@ class AsyncHttpClient:
         max_retries: int = _DEFAULT_MAX_RETRIES,
         base_headers: dict[str, str] | None = None,
         auth: APIAuthInterface | None = None,
-        # access_token: str | None = None,
-        # token_handler: Callable[[str], object] | None = None,
     ) -> None:
         self.base_url = base_url
         self._client = client
@@ -147,11 +145,7 @@ class AsyncHttpClient:
                 await asyncio.sleep(self._requestDelay(attempt))
                 continue
 
-            if (
-                response.status_code == 401
-                and self._auth is not None
-                and not token_refreshed
-            ):
+            if response.status_code == 401 and self._auth is not None and not token_refreshed:
                 token_refreshed = True
                 logger.warning("%s %s -> 401, refreshing token once", method, url)
 
@@ -164,10 +158,7 @@ class AsyncHttpClient:
 
                 continue
 
-            if (
-                response.status_code in _RETRYABLE_STATUS
-                and attempt < self._max_retries
-            ):
+            if response.status_code in _RETRYABLE_STATUS and attempt < self._max_retries:
                 delay = self._getRetryAfter(response) or self._requestDelay(attempt)
                 logger.warning(
                     f"{method} %s -> %d, retry %d/%d in %.1fs",
@@ -191,9 +182,7 @@ class AsyncHttpClient:
 
             return response
 
-        raise HttpClientError(
-            f"{method} {url} failed after retries: {last_exc}"
-        ) from last_exc
+        raise HttpClientError(f"{method} {url} failed after retries: {last_exc}") from last_exc
 
     @staticmethod
     def _requestDelay(attempt: int) -> float:

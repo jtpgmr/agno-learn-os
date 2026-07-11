@@ -1,7 +1,5 @@
 from functools import lru_cache
-from uuid import uuid4
 
-from agno.agent import Agent
 from agno.db.postgres import AsyncPostgresDb
 from agno.knowledge.embedder.openai_like import OpenAILikeEmbedder
 from agno.knowledge.knowledge import Knowledge
@@ -9,6 +7,8 @@ from agno.models.openai import OpenAILike
 from agno.vectordb.pgvector import PgVector, SearchType
 
 from .settings import AIModelSettings, AppSettings
+
+DEFAULT_SCHEMA_AI = "ai"
 
 
 @lru_cache
@@ -20,7 +20,7 @@ def getSettings() -> AppSettings:
 def getDatabase(
     db_url: str,
     *,
-    schema_name: str | None = None,
+    schema_name: str = DEFAULT_SCHEMA_AI,
     table_name: str | None = None,
     memory_table: str | None = None,
     session_table: str | None = None,
@@ -43,7 +43,7 @@ def getVectorStore(
     db_url: str,
     table_name: str,
     embedding_model: OpenAILikeEmbedder,
-    schema_name: str = "agno",
+    schema_name: str = DEFAULT_SCHEMA_AI,
     search_type: SearchType = SearchType.hybrid,
     **kwargs,
 ) -> PgVector:
@@ -83,22 +83,6 @@ def getEmbeddingModel() -> OpenAILikeEmbedder:
 @lru_cache
 def getKnowledge() -> Knowledge:
     return Knowledge(
-        # name="",
-        # description="",
         contents_db=getDatabase(),
         vector_db=getVectorStore(),
     )
-
-
-async def chatWithAgent(agent: Agent, *, user_id: str | None = None, session_id: str | None = None):
-    if not session_id:
-        session_id = str(uuid4())
-    while True:
-        prompt = input("\nYou: ")
-
-        if prompt.lower() in {"exit", "quit"}:
-            break
-
-        await agent.aprint_response(
-            prompt, user_id=user_id, session_id=session_id, stream=True, markdown=True
-        )
