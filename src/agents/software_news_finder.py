@@ -1,7 +1,5 @@
-import asyncio
 from textwrap import dedent
 from typing import Any
-from uuid import uuid4
 
 from agno.agent import Agent
 from agno.skills import Skills
@@ -15,7 +13,7 @@ from agno.tools.reasoning import ReasoningTools
 from agno.tools.workspace import Workspace as WorkspaceTools
 
 from src.core import AppSettings, getDatabase, getResponseModel, getSettings
-from src.core.utils.agent import chatWithAgent, excludeTools, getAgentSkills, getSessionWorkspace
+from src.core.utils.agent import excludeTools, getAgentSkills, getSessionWorkspace
 from src.tools import DevToTools
 
 # TODO: Tools and features to explore and implement
@@ -31,8 +29,13 @@ from src.tools import DevToTools
 
 
 def buildSoftwareNewsFinder(
-    settings: AppSettings, session_id: str | None = None, *, read_only=True, allow_delete=False
+    settings: AppSettings | None = None,
+    session_id: str | None = None,
+    *,
+    read_only=True,
+    allow_delete=False,
 ) -> Agent:
+    settings = settings or getSettings()
     skills: Skills | None = None
 
     # TODO: Implement a better way of administering read/write/delete permissions for each toolkit
@@ -88,17 +91,18 @@ def buildSoftwareNewsFinder(
 
             tools.append(filtered_toolkit)
 
+    response_model = getResponseModel()
     return Agent(
         name="Feature test agent",
         id="feature-test-agent",
         role="Finds written tutorials and articles on Github and dev.to and engineering blogs.",
-        model=getResponseModel(),
+        model=response_model,
         tools=tools,
         tool_call_limit=tool_call_limit,
         skills=skills,
         instructions=[
             dedent(f"""
-            You are a tech news finder/researcher, whose purpose is to keep me up-to-date with the latest in tech, including
+            You are a tech news finder/researcher, powered by the LLM response model {response_model}, whose purpose is to keep me up-to-date with the latest in tech, including
             AI, webdev (across the stack), DevOps, database use and administration, data analysis, robotics, hardware,
             engineering, security, networking, IT and more.
 
@@ -125,10 +129,10 @@ def buildSoftwareNewsFinder(
         ],
         db=getDatabase(db_url=settings.db.dsn, create_schema=True),
         add_history_to_context=True,  # allows retrieving session context from db
-        num_history_runs=3,
+        num_history_runs=20,
         add_datetime_to_context=True,
         search_session_history=True,
-        num_history_sessions=2,
+        num_history_sessions=20,
         # DB tools
         read_chat_history=True,
         read_tool_call_history=True,
@@ -141,16 +145,3 @@ def buildSoftwareNewsFinder(
         markdown=True,
         telemetry=False,
     )
-
-
-if __name__ == "__main__":
-    settings = getSettings()
-    db = getDatabase(db_url=settings.db.dsn, create_schema=True)
-
-    session_id: str = str(settings.feature_test.session_id or uuid4())
-
-    print("The current session id is:\t", session_id)
-
-    agent = buildSoftwareNewsFinder(settings, session_id)
-
-    asyncio.run(chatWithAgent(agent, session_id=session_id))

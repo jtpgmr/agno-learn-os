@@ -8,7 +8,7 @@ from agno.vectordb.pgvector import PgVector, SearchType
 
 from .settings import AIModelSettings, AppSettings
 
-DEFAULT_SCHEMA_AI = "ai"
+DEFAULT_SCHEMA_AI = "agno"
 
 
 @lru_cache

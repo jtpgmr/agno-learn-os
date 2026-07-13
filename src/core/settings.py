@@ -76,9 +76,10 @@ class FeatureTestSettings(BaseSettings):
 
     @model_validator(mode="after")
     def uuidValidator(self) -> FeatureTestSettings:
-        self.session_id = str(
-            self.session_id if isinstance(self.session_id, UUID) else UUID(self.session_id)
-        )
+        if self.session_id:
+            self.session_id = str(
+                self.session_id if isinstance(self.session_id, UUID) else UUID(self.session_id)
+            )
         return self
 
 

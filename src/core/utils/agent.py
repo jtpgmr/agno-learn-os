@@ -1,7 +1,6 @@
 from pathlib import Path
 from uuid import uuid4
 
-from agno.agent import Agent
 from agno.skills import LocalSkills, SkillLoader, Skills
 from agno.tools import Toolkit
 from agno.tools.workspace import Workspace as WorkspaceTools
@@ -9,20 +8,6 @@ from agno.tools.workspace import Workspace as WorkspaceTools
 READ_KEYWORDS = ("read", "get", "list", "search")
 WRITE_KEYWORDS = ("create", "edit", "write", "add", "insert", "upsert", "shell")
 DELETE_KEYWORDS = ("delete", "remove", "drop", "destroy")
-
-
-async def chatWithAgent(agent: Agent, *, user_id: str | None = None, session_id: str | None = None):
-    if not session_id:
-        session_id = str(uuid4())
-    while True:
-        prompt = input("\nYou: ")
-
-        if prompt.lower() in {"exit", "quit"}:
-            break
-
-        await agent.aprint_response(
-            prompt, user_id=user_id, session_id=session_id, stream=True, markdown=True
-        )
 
 
 def getSessionWorkspace(
