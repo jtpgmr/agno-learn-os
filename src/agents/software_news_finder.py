@@ -11,10 +11,11 @@ from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.exa import ExaTools
 from agno.tools.github import GithubTools
 from agno.tools.hackernews import HackerNewsTools
+from agno.tools.knowledge import KnowledgeTools
 from agno.tools.reasoning import ReasoningTools
 from agno.tools.workspace import Workspace as WorkspaceTools
 
-from src.core import AppSettings, getDatabase, getResponseModel, getSettings
+from src.core import AppSettings, getDatabase, getKnowledge, getResponseModel, getSettings
 from src.core.utils.agent import excludeTools, getAgentSkills, getSessionWorkspace
 from src.tools import DevToTools
 
@@ -22,8 +23,6 @@ from src.tools import DevToTools
 # from agno.tools.websearch import WebSearchTools
 # from agno.tools.youtube import YouTubeTools
 # from agno.learn import LearningMachine
-# from agno.tools.knowledge import Knowledge as KnowledgeTools
-# from agno.knowledge import Knowledge
 # from agno.tools.memory import MemoryTools
 # from agno.tools.postgres import PostgresTools
 # from agno.memory import MemoryManager, UserMemory
@@ -38,6 +37,7 @@ def buildSoftwareNewsFinder(
     response_model: Model | None = None,
     read_only=True,
     allow_delete=False,
+    stale_after_days: int = 365,
 ) -> Agent:
     settings = settings or getSettings()
     skills: Skills | None = None
@@ -52,18 +52,38 @@ def buildSoftwareNewsFinder(
         DevToTools(),
         HackerNewsTools(),
         ReasoningTools(
-            instructions=dedent("""
-                Before finalizing any research brief, reason explicitly:
-                1. State what claim each source supports and its tier (docs/repo >
-                engineering blog > dev.to > generic web).
-                2. Check for conflict between the two search toolkits (Exa vs Tavily).
-                If they disagree, note the disagreement and which has stronger evidence.
-                3. List what is still missing or stale (>N days).
-                4. Only then conclude a ranked, de-duplicated brief.
+            instructions=dedent(f"""
+                Before finalizing any research brief, reason step by step and show that reasoning:
+                    1. Tier each source. For every source, state the specific claim it supports and its
+                    tier: official docs / source repo > vendor engineering blog > community post
+                    (dev.to, Hacker News) > generic web. Treat a claim backed only by a low-tier
+                    source as unverified, and say so.
+
+                    2. Cross-check. When more than one tool returns results for the same claim, compare
+                    them. If they conflict, state the disagreement explicitly and say which source is
+                    more authoritative and why — never silently pick one.
+
+                    3. Judge recency. Using the current date in your context, flag any source older than
+                    {stale_after_days} days as potentially stale, and note where you lack a recent source.
+
+                    4. Name the gaps. List what the brief still cannot answer from the gathered sources.
+
+                    5. Only then write the brief: ranked by evidence strength, de-duplicated by canonical
+                    URL, each item citing its source and tier. Prefer "I could not confirm X" over
+                    presenting a weak claim as settled.
             """),
             add_instructions=True,
         ),
     ]
+
+    db = db or getDatabase(db_url=settings.db.dsn, create_schema=True)
+
+    try:
+        knowledge = getKnowledge(db=db)
+
+        tools.append(KnowledgeTools(knowledge))
+    except ValueError:
+        pass
 
     if settings.tools.exa_api_key:
         tools.append(ExaTools(api_key=settings.tools.exa_api_key.get_secret_value(), all=True))
@@ -130,7 +150,7 @@ def buildSoftwareNewsFinder(
             Make sure that your the amount of tools you call/use falls within your limit of {tool_call_limit} calls.
         """)
         ],
-        db=db or getDatabase(db_url=settings.db.dsn, create_schema=True),
+        db=db,
         add_history_to_context=True,  # allows retrieving session context from db
         num_history_runs=20,
         add_datetime_to_context=True,

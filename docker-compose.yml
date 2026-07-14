@@ -8,7 +8,7 @@ volumes:
 
 services:
   agno_postgres_database:
-    image: ${DOCKER__POSTGRES__IMAGE:-postgres:17}
+    image: ${DOCKER__POSTGRES__IMAGE:-pgvector/pgvector:pg17}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB__DATABASE_NAME:-postgres}

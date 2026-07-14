@@ -5,7 +5,7 @@ from agno.os import AgentOS
 from fastapi import FastAPI
 
 from src.agents.software_news_finder import buildSoftwareNewsFinder
-from src.core import getDatabase, getSettings
+from src.core import getDatabase, getSettings, initializeAgnoSchema
 from src.runtimes.agent_os import buildAgentOS
 from src.runtimes.cli import terminalChatSession
 
@@ -15,8 +15,11 @@ async def testTerminalChatSession() -> str:
 
     session_id: str = str(settings.feature_test.session_id or uuid4())
 
-    print("The current session id is:\t", session_id)
+    print("The current session id is:\t", session_id, "\n")
 
+    # db = getDatabase(db_url=settings.db.dsn, create_schema=True)
+
+    await initializeAgnoSchema(metrics_table="test_table", versions_table="test_version")
     agent = buildSoftwareNewsFinder(settings, session_id)
 
     return await terminalChatSession(agent, session_id=session_id)

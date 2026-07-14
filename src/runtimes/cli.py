@@ -2,14 +2,14 @@ from uuid import uuid4
 
 from agno.agent import Agent
 
-EXIT_COMMANDS = {"exit", "quit"}
+EXIT_COMMANDS: set[str] = {"exit", "quit"}
 
 
 async def terminalChatSession(
     agent: Agent, *, user_id: str | None = None, session_id: str | None = None
 ) -> str:
     session_id = session_id or str(uuid4())
-    print(f"Session started: {session_id}  (type {EXIT_COMMANDS} or press 'Ctrl+C' to end)\n")
+    print(f"\nSession started: {session_id}  (type {EXIT_COMMANDS} or press 'Ctrl+C' to end)\n")
     try:
         while True:
             prompt: str = input("\nYou: ")

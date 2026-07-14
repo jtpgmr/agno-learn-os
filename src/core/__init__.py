@@ -2,8 +2,8 @@ from functools import lru_cache
 
 from agno.db.postgres import AsyncPostgresDb
 from agno.knowledge.embedder.openai_like import OpenAILikeEmbedder
-from agno.knowledge.knowledge import Knowledge
 from agno.models.openai import OpenAILike
+from agno.tools.knowledge import Knowledge
 from agno.vectordb.pgvector import PgVector, SearchType
 
 from .settings import AIModelSettings, AppSettings
@@ -21,40 +21,62 @@ def getDatabase(
     db_url: str,
     *,
     schema_name: str = DEFAULT_SCHEMA_AI,
-    table_name: str | None = None,
-    memory_table: str | None = None,
-    session_table: str | None = None,
     create_schema: bool = False,
+    session_table: str | None = None,
+    memory_table: str | None = None,
     **kwargs,
 ) -> AsyncPostgresDb:
     return AsyncPostgresDb(
         db_url=db_url,
         db_schema=schema_name,
-        knowledge_table=table_name,
+        create_schema=create_schema,
+        session_table=session_table,
+        memory_table=memory_table,
+        **kwargs,
+    )
+
+
+async def initializeAgnoSchema(
+    *,
+    db: AsyncPostgresDb | None = None,
+    settings: AppSettings | None = None,
+    schema_name: str = DEFAULT_SCHEMA_AI,
+    memory_table: str | None = None,
+    session_table: str | None = None,
+    metrics_table: str | None = None,
+    knowledge_table: str | None = None,
+    culture_table: str | None = None,
+    traces_table: str | None = None,
+    spans_table: str | None = None,
+    versions_table: str | None = None,
+    learnings_table: str | None = None,
+    schedules_table: str | None = None,
+    schedule_runs_table: str | None = None,
+    approvals_table: str | None = None,
+    auth_tokens_table: str | None = None,
+):
+    settings = settings or getSettings()
+
+    db = db or getDatabase(
+        settings.db.dsn,
+        create_schema=True,
+        schema_name=schema_name,
         memory_table=memory_table,
         session_table=session_table,
-        create_schema=create_schema,
-        **kwargs,
+        metrics_table=metrics_table,
+        knowledge_table=knowledge_table,
+        culture_table=culture_table,
+        traces_table=traces_table,
+        spans_table=spans_table,
+        versions_table=versions_table,
+        learnings_table=learnings_table,
+        schedules_table=schedules_table,
+        schedule_runs_table=schedule_runs_table,
+        approvals_table=approvals_table,
+        auth_tokens_table=auth_tokens_table,
     )
 
-
-@lru_cache
-def getVectorStore(
-    db_url: str,
-    table_name: str,
-    embedding_model: OpenAILikeEmbedder,
-    schema_name: str = DEFAULT_SCHEMA_AI,
-    search_type: SearchType = SearchType.hybrid,
-    **kwargs,
-) -> PgVector:
-    return PgVector(
-        db_url=db_url,
-        schema=schema_name,
-        table_name=table_name,
-        search_type=search_type,
-        embedder=embedding_model,
-        **kwargs,
-    )
+    await db._create_all_tables()
 
 
 @lru_cache
@@ -81,8 +103,48 @@ def getEmbeddingModel() -> OpenAILikeEmbedder:
 
 
 @lru_cache
-def getKnowledge() -> Knowledge:
+def getVectorStore(
+    db_url: str,
+    table_name: str,
+    *,
+    schema_name: str = DEFAULT_SCHEMA_AI,
+    search_type: SearchType = SearchType.hybrid,
+    embedding_model: OpenAILikeEmbedder | None = None,
+    **kwargs,
+) -> PgVector:
+    return PgVector(
+        db_url=db_url,
+        schema=schema_name,
+        table_name=table_name,
+        search_type=search_type,
+        embedder=embedding_model or getEmbeddingModel(),
+        **kwargs,
+    )
+
+
+@lru_cache
+def getKnowledge(
+    *,
+    db: AsyncPostgresDb | None = None,
+    settings: AppSettings | None = None,
+    embedding_model: OpenAILikeEmbedder | None = None,
+) -> Knowledge:
+    settings = settings or getSettings()
+    if not db and not settings:
+        raise ValueError("AppSettings or DB class instance is needed to create knowledge base")
+
+    if db:
+        return Knowledge(
+            contents_db=db,
+            vector_db=getVectorStore(
+                db.db_url, db.knowledge_table_name, embedding_model=embedding_model
+            ),
+        )
+
+    db = getDatabase(settings.db.dsn)
     return Knowledge(
-        contents_db=getDatabase(),
-        vector_db=getVectorStore(),
+        contents_db=db,
+        vector_db=getVectorStore(
+            db.db_url, db.knowledge_table_name, embedding_model=embedding_model
+        ),
     )
