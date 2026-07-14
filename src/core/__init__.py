@@ -13,7 +13,7 @@ DEFAULT_SCHEMA_AI = "agno"
 
 @lru_cache
 def getSettings() -> AppSettings:
-    return AppSettings()  # type: ignore[call-arg]
+    return AppSettings()
 
 
 @lru_cache

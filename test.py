@@ -1,7 +1,8 @@
 import asyncio
 from uuid import uuid4
 
-from agno.os import AgentOS, app
+from agno.os import AgentOS
+from fastapi import FastAPI
 
 from src.agents.software_news_finder import buildSoftwareNewsFinder
 from src.core import getDatabase, getSettings
@@ -33,11 +34,10 @@ def testAgentOSSession():
 
     agent_os = buildAgentOS([agent], db=db)
 
-    agno_os_app: app.FastAPI = agent_os.get_app()
+    agno_os_app: FastAPI = agent_os.get_app()
 
     try:
         agent_os.serve(agno_os_app)
-        # agent_os.serve("main.testAgentOSSession:app", reload=True)
     except Exception as err:
         raise err
 
@@ -51,7 +51,7 @@ test_agent = buildSoftwareNewsFinder(test_settings, test_session_id)
 
 test_agent_os: AgentOS = buildAgentOS([test_agent], db=test_db)
 
-test_agno_os_app: app.FastAPI = test_agent_os.get_app()
+test_agno_os_app: FastAPI = test_agent_os.get_app()
 
 
 if __name__ == "__main__":

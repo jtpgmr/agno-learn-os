@@ -10,9 +10,8 @@ async def terminalChatSession(
 ) -> str:
     session_id = session_id or str(uuid4())
     print(f"Session started: {session_id}  (type {EXIT_COMMANDS} or press 'Ctrl+C' to end)\n")
-
-    while True:
-        try:
+    try:
+        while True:
             prompt: str = input("\nYou: ")
 
             prompt = prompt.strip()
@@ -27,11 +26,11 @@ async def terminalChatSession(
                 prompt, user_id=user_id, session_id=session_id, stream=True, markdown=True
             )
 
-        except KeyboardInterrupt:
-            break
-        finally:
-            print(
-                f"\nEnding chat. Resume this conversation using the session ID {session_id}",
-            )
+    except KeyboardInterrupt:
+        pass
+    finally:
+        print(
+            f"\nEnding chat. Resume this conversation using the session ID {session_id}",
+        )
 
     return session_id

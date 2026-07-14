@@ -26,3 +26,28 @@ services:
       timeout: 3s
       retries: 3
       start_period: 15s
+
+  # docker compose up app -d && docker compose attach app
+  app:
+    build:
+      context: ./
+      dockerfile: app.Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      DB__DATABASE_URI: "${DB__DIALECT}://${DB__USER:-postgres}:${DB__PASSWORD}@${DB__HOST:-agno_postgres_database}:${DB__PORT:-5432}/${DB__DATABASE_NAME:-postgres}"
+    env_file:
+      - path: .env
+    stdin_open: true
+    tty: true
+    depends_on:
+      agno_postgres_database:
+        condition: service_healthy
+    networks:
+      - agno_net
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'python test.py' || exit 1"]   
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    security_opt: ["no-new-privileges:true"] 

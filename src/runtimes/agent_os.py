@@ -8,6 +8,7 @@ from agno.team import Team
 from src.core import AppSettings, getDatabase, getSettings
 
 
+# AgentOS already handles Database `_create_all_tables`
 def buildAgentOS(
     agents: list[Agent] | None = None,
     teams: list[Team] | None = None,

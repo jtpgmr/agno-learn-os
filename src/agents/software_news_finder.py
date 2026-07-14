@@ -2,6 +2,8 @@ from textwrap import dedent
 from typing import Any
 
 from agno.agent import Agent
+from agno.db.postgres.async_postgres import AsyncPostgresDb
+from agno.models.base import Model
 from agno.skills import Skills
 from agno.tools import Toolkit
 from agno.tools.arxiv import ArxivTools
@@ -32,6 +34,8 @@ def buildSoftwareNewsFinder(
     settings: AppSettings | None = None,
     session_id: str | None = None,
     *,
+    db: AsyncPostgresDb | None = None,
+    response_model: Model | None = None,
     read_only=True,
     allow_delete=False,
 ) -> Agent:
@@ -79,7 +83,7 @@ def buildSoftwareNewsFinder(
         workspace: WorkspaceTools = getSessionWorkspace(
             settings.ai.session_data_path,
             session_id,
-            read_only=read_only,  # set `read_only` to False to allow writing to the workspace folder
+            read_only=False,  # set `read_only` to False to allow writing to the workspace folder
         )
         tools.append(workspace)
 
@@ -91,12 +95,11 @@ def buildSoftwareNewsFinder(
 
             tools.append(filtered_toolkit)
 
-    response_model = getResponseModel()
     return Agent(
         name="Feature test agent",
         id="feature-test-agent",
         role="Finds written tutorials and articles on Github and dev.to and engineering blogs.",
-        model=response_model,
+        model=response_model or getResponseModel(),
         tools=tools,
         tool_call_limit=tool_call_limit,
         skills=skills,
@@ -127,7 +130,7 @@ def buildSoftwareNewsFinder(
             Make sure that your the amount of tools you call/use falls within your limit of {tool_call_limit} calls.
         """)
         ],
-        db=getDatabase(db_url=settings.db.dsn, create_schema=True),
+        db=db or getDatabase(db_url=settings.db.dsn, create_schema=True),
         add_history_to_context=True,  # allows retrieving session context from db
         num_history_runs=20,
         add_datetime_to_context=True,
