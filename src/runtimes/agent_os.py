@@ -20,7 +20,7 @@ def buildAgentOS(
     tracing: bool = True,
 ) -> AgentOS:
     if not agents and not teams:
-        raise Exception("AgentOS requires at least one Agent or Team to operate.")
+        raise ValueError("AgentOS requires at least one Agent or Team to operate.")
 
     settings = settings or getSettings()
     db = db or getDatabase(db_url=settings.db.dsn, create_schema=True)

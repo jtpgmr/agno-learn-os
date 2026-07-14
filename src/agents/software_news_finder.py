@@ -83,7 +83,7 @@ def buildSoftwareNewsFinder(
         workspace: WorkspaceTools = getSessionWorkspace(
             settings.ai.session_data_path,
             session_id,
-            read_only=False,  # set `read_only` to False to allow writing to the workspace folder
+            read_only=read_only,  # set `read_only` to False to allow writing to the workspace folder
         )
         tools.append(workspace)
 

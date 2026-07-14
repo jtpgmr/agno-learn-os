@@ -36,7 +36,7 @@ class DatabaseSettings(BaseSettings):
     def setDefaultPort(cls, port: object) -> object:
         return 5432 if port == "" else port
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def dsn(self) -> str:
         return str(
@@ -67,6 +67,16 @@ class ToolSettings(BaseSettings):
     model_config = SettingsConfigDict({**BASE_SETTINGS_CONFIG, "env_prefix": "TOOLS__"})
     github_access_token: SecretStr | None = None
     exa_api_key: SecretStr | None = None
+
+    @model_validator(mode="after")
+    def validateGithubToken(self) -> ToolSettings:
+        if self.github_access_token and (
+            not (gh_token := self.github_access_token.get_secret_value())
+            or not gh_token.startswith("github_pat_")
+        ):
+            self.github_access_token = None
+
+        return self
 
 
 class FeatureTestSettings(BaseSettings):

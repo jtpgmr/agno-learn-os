@@ -8,7 +8,7 @@ volumes:
 
 services:
   agno_postgres_database:
-    image: timescale/timescaledb-ha:pg17.9-ts2.26.1
+    image: ${DOCKER__POSTGRES__IMAGE:-postgres:17}
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB__DATABASE_NAME:-postgres}
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
     working_dir: /app
     environment:
-      DB__DATABASE_URI: "${DB__DIALECT}://${DB__USER:-postgres}:${DB__PASSWORD}@${DB__HOST:-agno_postgres_database}:${DB__PORT:-5432}/${DB__DATABASE_NAME:-postgres}"
+      DB__DATABASE_URI: "postgresql://${DB__USER:-postgres}:${DB__PASSWORD}@${DB__HOST:-agno_postgres_database}:${DB__PORT:-5432}/${DB__DATABASE_NAME:-postgres}"
     env_file:
       - path: .env
     stdin_open: true
@@ -46,8 +46,8 @@ services:
     networks:
       - agno_net
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'python test.py' || exit 1"]   
+      test: [ "CMD-SHELL", "pgrep -f 'python test.py' || exit 1" ]
       interval: 10s
       timeout: 3s
       retries: 3
-    security_opt: ["no-new-privileges:true"] 
+    security_opt: [ "no-new-privileges:true" ]

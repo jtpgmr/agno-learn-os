@@ -50,15 +50,13 @@ class HttpClientError(Exception):
 
 
 class APIAuthInterface(Protocol):
-    def getAccessToken(self):
-        pass
+    def getAccessToken(self) -> str: ...
 
-    async def getNewAccessToken(self):
+    async def getNewAccessToken(self) -> str:
         """Return a currently-valid access token (refreshing if needed)."""
-        pass
+        ...
 
-    async def handleAccessToken(self, access_token):
-        pass
+    async def handleAccessToken(self, access_token) -> None: ...
 
 
 class AsyncHttpClient:
