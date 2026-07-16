@@ -30,6 +30,7 @@ services:
       start_period: 15s
 
   # docker compose build terminal_chat --no-cache && docker compose up terminal_chat -d && docker compose attach terminal_chat
+  # docker compose up --build -d --scale terminal_chat=2
   terminal_chat:
     build:
       context: ./
@@ -49,8 +50,6 @@ services:
     depends_on:
       agno_postgres_database:
         condition: service_healthy
-      agno_docker_sandbox:
-        condition: service_started
     networks:
       - agno_net
       - docker_sandbox_net
@@ -86,8 +85,6 @@ services:
     depends_on:
       agno_postgres_database:
         condition: service_healthy
-      agno_docker_sandbox:
-        condition: service_started
     networks:
       - agno_net
       - docker_sandbox_net
@@ -112,6 +109,7 @@ services:
       # NEXT_PUBLIC_* vars are inlined at build time by Next.js.
       # Same key name as AgentOS, so set it once in your .env if auth is required.
       NEXT_PUBLIC_OS_SECURITY_KEY: ${NEXT_PUBLIC_OS_SECURITY_KEY:-}
+      NEXT_PUBLIC_AGENTOS_URL: "http://agent_os:${AGENTOS__PORT:-7777}"
     ports:
       - "3000:3000"
     depends_on:
@@ -128,6 +126,7 @@ services:
     security_opt: [ "no-new-privileges:true" ]
 
   # docker compose build agno_docker_sandbox --no-cache && docker compose up agno_docker_sandbox -d && docker compose attach agno_docker_sandbox
+  # docker exec -it agno-learn-os-agno_docker_sandbox-1 sh    
   agno_docker_sandbox:
     image: docker:dind
     restart: unless-stopped

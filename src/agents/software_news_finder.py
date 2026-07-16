@@ -30,6 +30,22 @@ from src.tools import DevToTools
 # from agno.memory import MemoryManager, UserMemory
 # from agno.tools.email import EmailTools
 
+AVAILABLE_STDIO_COMMANDS = "uvx"
+STDIO_MCP_SERVERS = {
+    "mcp-server-docker": {
+        "args": {},
+        "env": {"DOCKER_HOST": docker_host} if (docker_host := getSettings().docker_host) else {},
+    },
+    "uvx docker-mcp": {},
+    "markitdown-mcp": {},
+    "mcp-pandoc": {},
+}
+
+MCP_URLS: dict[str, str] = {
+    "gitmcp.io/docs": "streamable-http",
+    "mcp.deepwiki.com/mcp": "streamable-http",
+}
+
 
 def buildSoftwareNewsFinder(
     settings: AppSettings | None = None,
@@ -42,6 +58,7 @@ def buildSoftwareNewsFinder(
     stale_after_days: int = 365,
 ) -> Agent:
     settings = settings or getSettings()
+    response_model = response_model or getResponseModel()
     skills: Skills | None = None
 
     # TODO: Implement a better way of administering read/write/delete permissions for each toolkit
@@ -51,7 +68,7 @@ def buildSoftwareNewsFinder(
     docker_mcp = StdioServerParameters(
         command="uvx",
         args=["mcp-server-docker"],
-        env={"DOCKER_HOST": settings.docker__host} if settings.docker__host else {},
+        env={"DOCKER_HOST": settings.docker_host} if settings.docker_host else {},
     )
 
     # TODO: add a client-side logger for displaying details such as tool configuration
@@ -84,6 +101,7 @@ def buildSoftwareNewsFinder(
         ),
         MultiMCPTools(
             urls=["https://gitmcp.io/docs", "https://mcp.deepwiki.com/mcp"],
+            urls_transports=["streamable-http", "streamable-http"],
             # commands=["uvx docker-mcp"],
             server_params_list=[docker_mcp],
         ),
@@ -132,7 +150,7 @@ def buildSoftwareNewsFinder(
         name="Feature test agent",
         id="feature-test-agent",
         role="Finds written tutorials and articles on Github and dev.to and engineering blogs.",
-        model=response_model or getResponseModel(),
+        model=response_model,
         tools=tools,
         tool_call_limit=tool_call_limit,
         skills=skills,

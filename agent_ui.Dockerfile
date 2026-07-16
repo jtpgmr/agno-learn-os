@@ -64,7 +64,7 @@ RUN addgroup -S -g 1001 nodejs \
   && adduser -S -u 1001 -G nodejs nextjs
 
 # Standalone server.js binds to HOSTNAME (NOT 0.0.0.0 by default) -- verified: without
-# this it bound to the container IP (172.x) and localhost/healthcheck failed with ECONNREFUSED.
+# this it bound to the container IP and localhost/healthcheck failed with ECONNREFUSED.
 ENV HOSTNAME=0.0.0.0
 
 # Standalone output: Next copied only what's needed into .next/standalone.

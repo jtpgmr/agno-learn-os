@@ -98,7 +98,7 @@ class AppSettings(BaseSettings):
 
     project_path: DirectoryPath | None = None
     docs_path: DirectoryPath | None = None
-    docker__host: str | None = None
+    docker_host: str | None = None
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)  # type: ignore[arg-type]
     ai: AIModelSettings = Field(default_factory=AIModelSettings)  # type: ignore[arg-type]

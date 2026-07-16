@@ -24,5 +24,3 @@ COPY src ./src
 COPY terminal_chat.py agent_os.py ./
 
 RUN uv sync
-
-# CMD ["uv", "run", "terminal_chat.py"]
