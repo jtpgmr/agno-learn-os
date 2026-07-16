@@ -10,6 +10,7 @@ dependencies = [
     "ddgs>=9.14.4",
     "exa-py>=2.16.0",
     "fastapi>=0.139.0",
+    "mcp>=1.28.1",
     "openai>=2.44.0",
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.4",

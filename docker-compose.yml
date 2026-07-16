@@ -1,10 +1,12 @@
 networks:
   agno_net:
-    name: agno_net
+    driver: bridge
+  docker_sandbox_net:
     driver: bridge
 
 volumes:
   agno_pgdata:
+  agno_docker_data:
 
 services:
   agno_postgres_database:
@@ -27,15 +29,19 @@ services:
       retries: 3
       start_period: 15s
 
-  # docker compose up app -d && docker compose attach app
-  app:
+  # docker compose build terminal_chat --no-cache && docker compose up terminal_chat -d && docker compose attach terminal_chat
+  terminal_chat:
     build:
       context: ./
-      dockerfile: app.Dockerfile
+      dockerfile: apps.Dockerfile
+    command: [ "uv", "run", "terminal_chat.py" ]
     restart: unless-stopped
     working_dir: /app
     environment:
       DB__DATABASE_URI: "postgresql://${DB__USER:-postgres}:${DB__PASSWORD}@${DB__HOST:-agno_postgres_database}:${DB__PORT:-5432}/${DB__DATABASE_NAME:-postgres}"
+      DOCKER_HOST: tcp://agno_docker_sandbox:2375
+    volumes:
+      - "${WORKSPACES__LOCAL_VOLUME:-./workspaces}:${WORKSPACES__DOCKER_VOLUME:-./app/workspaces}"
     env_file:
       - path: .env
     stdin_open: true
@@ -43,11 +49,98 @@ services:
     depends_on:
       agno_postgres_database:
         condition: service_healthy
+      agno_docker_sandbox:
+        condition: service_started
     networks:
       - agno_net
+      - docker_sandbox_net
     healthcheck:
-      test: [ "CMD-SHELL", "pgrep -f 'python test.py' || exit 1" ]
+      test: [ "CMD-SHELL", "pgrep -f 'python terminal_chat.py' || exit 1" ]
       interval: 10s
       timeout: 3s
       retries: 3
     security_opt: [ "no-new-privileges:true" ]
+
+  agent_os:
+    build:
+      context: ./
+      dockerfile: apps.Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    # Run the AgentOS entrypoint (not the terminal-chat default in test.py).
+    # run_agentos.py wraps testAgentOSSession() to avoid top-level import side effects.
+    command: [ "uv", "run", "agent_os.py" ]
+    ports:
+      - "${AGENTOS__PORT:-7777}:7777"
+    environment:
+      DB__DATABASE_URI: "postgresql://${DB__USER:-postgres}:${DB__PASSWORD}@${DB__HOST:-agno_postgres_database}:${DB__PORT:-5432}/${DB__DATABASE_NAME:-postgres}"
+      DOCKER_HOST: tcp://agno_docker_sandbox:2375
+      # agno's AgentOS.serve() defaults to host="localhost" (binds 127.0.0.1 INSIDE
+      # the container), which would be unreachable from the host/agent_ui. Force 0.0.0.0.
+      # (Verified in agno source: serve() reads AGENT_OS_HOST / AGENT_OS_PORT env vars;
+      # default port is 7777.) Port also overridable via AGENT_OS_PORT.
+      AGENT_OS_HOST: "0.0.0.0"
+      AGENT_OS_PORT: "${AGENTOS__PORT:-7777}"
+    env_file:
+      - path: .env
+    depends_on:
+      agno_postgres_database:
+        condition: service_healthy
+      agno_docker_sandbox:
+        condition: service_started
+    networks:
+      - agno_net
+      - docker_sandbox_net
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:7777/health || exit 1" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    security_opt: [ "no-new-privileges:true" ]
+
+  # agent-ui (Next.js frontend for AgentOS). Built locally via agentui.Dockerfile,
+  # which clones agno-agi/agent-ui inside the builder stage (no host clone needed).
+  agent_ui:
+    build:
+      context: ./
+      dockerfile: agent_ui.Dockerfile
+    image: agent-ui:local
+    container_name: agent_ui
+    restart: unless-stopped
+    environment:
+      # NEXT_PUBLIC_* vars are inlined at build time by Next.js.
+      # Same key name as AgentOS, so set it once in your .env if auth is required.
+      NEXT_PUBLIC_OS_SECURITY_KEY: ${NEXT_PUBLIC_OS_SECURITY_KEY:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      agent_os:
+        condition: service_started
+    networks:
+      - agno_net
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt: [ "no-new-privileges:true" ]
+
+  # docker compose build agno_docker_sandbox --no-cache && docker compose up agno_docker_sandbox -d && docker compose attach agno_docker_sandbox
+  agno_docker_sandbox:
+    image: docker:dind
+    restart: unless-stopped
+    privileged: true # required for nested dockerd
+    environment:
+      DOCKER_TLS_CERTDIR: "" # plain TCP; fine on an internal-only network
+    command: [ "--host=tcp://0.0.0.0:2375", "--storage-driver=overlay2" ]
+    volumes:
+      - agno_docker_data:/var/lib/docker # persist the nested image cache
+    networks: [ docker_sandbox_net ]
+    healthcheck:
+      test: [ "CMD", "docker", "info" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

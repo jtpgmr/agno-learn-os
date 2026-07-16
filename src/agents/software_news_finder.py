@@ -12,8 +12,10 @@ from agno.tools.exa import ExaTools
 from agno.tools.github import GithubTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.knowledge import KnowledgeTools
+from agno.tools.mcp import MultiMCPTools
 from agno.tools.reasoning import ReasoningTools
 from agno.tools.workspace import Workspace as WorkspaceTools
+from mcp import StdioServerParameters
 
 from src.core import AppSettings, getDatabase, getKnowledge, getResponseModel, getSettings
 from src.core.utils.agent import excludeTools, getAgentSkills, getSessionWorkspace
@@ -46,11 +48,17 @@ def buildSoftwareNewsFinder(
     allowed_tools: dict[type[Toolkit], dict[str, Any]] = {}
     tool_call_limit = 30
 
+    docker_mcp = StdioServerParameters(
+        command="uvx",
+        args=["mcp-server-docker"],
+        env={"DOCKER_HOST": settings.docker__host} if settings.docker__host else {},
+    )
+
     # TODO: add a client-side logger for displaying details such as tool configuration
     tools: list[Toolkit] = [
         DuckDuckGoTools(),
-        DevToTools(),
-        HackerNewsTools(),
+        # DevToTools(),
+        # HackerNewsTools(),
         ReasoningTools(
             instructions=dedent(f"""
                 Before finalizing any research brief, reason step by step and show that reasoning:
@@ -74,6 +82,11 @@ def buildSoftwareNewsFinder(
             """),
             add_instructions=True,
         ),
+        MultiMCPTools(
+            urls=["https://gitmcp.io/docs", "https://mcp.deepwiki.com/mcp"],
+            # commands=["uvx docker-mcp"],
+            server_params_list=[docker_mcp],
+        ),
     ]
 
     db = db or getDatabase(db_url=settings.db.dsn, create_schema=True)
@@ -96,8 +109,8 @@ def buildSoftwareNewsFinder(
     if settings.project_path:
         skills = getAgentSkills(settings.project_path)
 
-    if settings.docs_path:
-        tools.append(ArxivTools(all=True, download_dir=settings.docs_path))
+    # if settings.docs_path:
+    #     tools.append(ArxivTools(all=True, download_dir=settings.docs_path))
 
     if settings.ai.session_data_path:
         workspace: WorkspaceTools = getSessionWorkspace(
@@ -159,7 +172,7 @@ def buildSoftwareNewsFinder(
         # DB tools
         read_chat_history=True,
         read_tool_call_history=True,
-        max_tool_calls_from_history=50,
+        max_tool_calls_from_history=tool_call_limit,
         enable_session_summaries=True,
         add_session_summary_to_context=True,
         # Options

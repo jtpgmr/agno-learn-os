@@ -3,6 +3,7 @@ from uuid import uuid4
 from agno.agent import Agent
 
 EXIT_COMMANDS: set[str] = {"exit", "quit"}
+MAX_PROMPT_LENGTH: int = 250_000
 
 
 async def terminalChatSession(
@@ -14,7 +15,12 @@ async def terminalChatSession(
         while True:
             prompt: str = input("\nYou: ")
 
-            prompt = prompt.strip()
+            # santize prompt
+            prompt = (
+                prompt.strip().encode(encoding="utf-8", errors="replace").decode(encoding="utf-8")
+            )
+
+            prompt = min(prompt, prompt[:MAX_PROMPT_LENGTH])
 
             if not prompt:
                 continue
