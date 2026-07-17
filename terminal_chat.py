@@ -1,20 +1,19 @@
 import asyncio
 from uuid import uuid4
 
-from src.agents.software_news_finder import buildSoftwareNewsFinder
+from src.agents.feature_tester import buildFeatureTester
 from src.core import getSettings, initializeAgnoSchema
 from src.runtimes.cli import terminalChatSession
 
 
 async def main() -> str:
     settings = getSettings()
-
     session_id: str = str(settings.feature_test.session_id or uuid4())
 
-    print("The current session id is:\t", session_id, "\n")
-
     await initializeAgnoSchema()
-    agent = buildSoftwareNewsFinder(settings, session_id, read_only=False)
+    agent = buildFeatureTester(settings, session_id, read_only=False)
+
+    print("The current session id is:\t", session_id, "\n")
 
     return await terminalChatSession(agent, session_id=session_id)
 

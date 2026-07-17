@@ -16,7 +16,7 @@ from uuid import uuid4
 from agno.os import AgentOS
 from fastapi import FastAPI
 
-from src.agents.software_news_finder import buildSoftwareNewsFinder
+from src.agents.feature_tester import buildFeatureTester
 from src.core import getDatabase, getSettings
 from src.runtimes.agent_os import buildAgentOS
 
@@ -29,7 +29,7 @@ def main():
 
     print("The current session id is:\t", session_id)
 
-    agent = buildSoftwareNewsFinder(settings, session_id)
+    agent = buildFeatureTester(settings, session_id)
 
     agent_os: AgentOS = buildAgentOS([agent], db=db)
 

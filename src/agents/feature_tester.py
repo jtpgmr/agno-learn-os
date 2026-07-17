@@ -6,48 +6,31 @@ from agno.db.postgres.async_postgres import AsyncPostgresDb
 from agno.models.base import Model
 from agno.skills import Skills
 from agno.tools import Toolkit
-from agno.tools.arxiv import ArxivTools
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.exa import ExaTools
 from agno.tools.github import GithubTools
-from agno.tools.hackernews import HackerNewsTools
 from agno.tools.knowledge import KnowledgeTools
-from agno.tools.mcp import MultiMCPTools
+from agno.tools.mcp import MultiMCPTools, StreamableHTTPClientParams
 from agno.tools.reasoning import ReasoningTools
 from agno.tools.workspace import Workspace as WorkspaceTools
 from mcp import StdioServerParameters
 
 from src.core import AppSettings, getDatabase, getKnowledge, getResponseModel, getSettings
 from src.core.utils.agent import excludeTools, getAgentSkills, getSessionWorkspace
-from src.tools import DevToTools
+from src.tools import DevToTools, getPresetMcpServerUrls, getPresetStdioMcpServers
 
 # TODO: Tools and features to explore and implement
-# from agno.tools.websearch import WebSearchTools
 # from agno.tools.youtube import YouTubeTools
 # from agno.learn import LearningMachine
 # from agno.tools.memory import MemoryTools
 # from agno.tools.postgres import PostgresTools
 # from agno.memory import MemoryManager, UserMemory
 # from agno.tools.email import EmailTools
-
-AVAILABLE_STDIO_COMMANDS = "uvx"
-STDIO_MCP_SERVERS = {
-    "mcp-server-docker": {
-        "args": {},
-        "env": {"DOCKER_HOST": docker_host} if (docker_host := getSettings().docker_host) else {},
-    },
-    "uvx docker-mcp": {},
-    "markitdown-mcp": {},
-    "mcp-pandoc": {},
-}
-
-MCP_URLS: dict[str, str] = {
-    "gitmcp.io/docs": "streamable-http",
-    "mcp.deepwiki.com/mcp": "streamable-http",
-}
+# from agno.tools.arxiv import ArxivTools
+# from agno.tools.hackernews import HackerNewsTools
 
 
-def buildSoftwareNewsFinder(
+def buildFeatureTester(
     settings: AppSettings | None = None,
     session_id: str | None = None,
     *,
@@ -65,16 +48,15 @@ def buildSoftwareNewsFinder(
     allowed_tools: dict[type[Toolkit], dict[str, Any]] = {}
     tool_call_limit = 30
 
-    docker_mcp = StdioServerParameters(
-        command="uvx",
-        args=["mcp-server-docker"],
-        env={"DOCKER_HOST": settings.docker_host} if settings.docker_host else {},
-    )
+    server_params_list: list[StdioServerParameters | StreamableHTTPClientParams] = [
+        *getPresetMcpServerUrls(),
+        *getPresetStdioMcpServers(settings),
+    ]
 
     # TODO: add a client-side logger for displaying details such as tool configuration
     tools: list[Toolkit] = [
         DuckDuckGoTools(),
-        # DevToTools(),
+        DevToTools(),
         # HackerNewsTools(),
         ReasoningTools(
             instructions=dedent(f"""
@@ -99,13 +81,11 @@ def buildSoftwareNewsFinder(
             """),
             add_instructions=True,
         ),
-        MultiMCPTools(
-            urls=["https://gitmcp.io/docs", "https://mcp.deepwiki.com/mcp"],
-            urls_transports=["streamable-http", "streamable-http"],
-            # commands=["uvx docker-mcp"],
-            server_params_list=[docker_mcp],
-        ),
     ]
+
+    if len(server_params_list):
+        print(server_params_list)
+        tools.append(MultiMCPTools(server_params_list=server_params_list))  # ty: ignore[invalid-argument-type]
 
     db = db or getDatabase(db_url=settings.db.dsn, create_schema=True)
 
@@ -147,8 +127,8 @@ def buildSoftwareNewsFinder(
             tools.append(filtered_toolkit)
 
     return Agent(
-        name="Feature test agent",
-        id="feature-test-agent",
+        name="Feature Tester",
+        id="feature-tester",
         role="Finds written tutorials and articles on Github and dev.to and engineering blogs.",
         model=response_model,
         tools=tools,
@@ -156,7 +136,7 @@ def buildSoftwareNewsFinder(
         skills=skills,
         instructions=[
             dedent(f"""
-            You are a tech news finder/researcher, powered by the LLM response model {response_model}, whose purpose is to keep me up-to-date with the latest in tech, including
+            You are a feature tester agent for this Agno framework, powered by the LLM response model {response_model}, whose purpose is to keep me up-to-date with the latest in tech, including
             AI, webdev (across the stack), DevOps, database use and administration, data analysis, robotics, hardware,
             engineering, security, networking, IT and more.
 
