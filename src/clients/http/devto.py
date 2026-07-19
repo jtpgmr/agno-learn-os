@@ -97,18 +97,3 @@ class DevToClient:
         if not isinstance(data, dict):
             raise ValueError("unexpected dev.to response shape (expected an object)")
         return DevToArticleDetail.model_validate(data)
-
-
-async def test():
-    dtc = DevToClient()
-
-    articles = await dtc.searchArticles(tag="ai")
-
-    article = await dtc.getArticle(articles[0].id)
-    print(article)
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    asyncio.run(test())

@@ -10,13 +10,14 @@ from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.exa import ExaTools
 from agno.tools.github import GithubTools
 from agno.tools.knowledge import KnowledgeTools
-from agno.tools.mcp import MultiMCPTools, StreamableHTTPClientParams
+from agno.tools.mcp import MultiMCPTools, StreamableHTTPClientParams, MCPTools
 from agno.tools.reasoning import ReasoningTools
 from agno.tools.workspace import Workspace as WorkspaceTools
 from mcp import StdioServerParameters
 
 from src.core import AppSettings, getDatabase, getKnowledge, getResponseModel, getSettings
-from src.core.utils.agent import excludeTools, getAgentSkills, getSessionWorkspace
+from src.utils import getAgentSkills, getSessionWorkspace
+from src.utils.tools import excludeTools
 from src.tools import DevToTools, getPresetMcpServerUrls, getPresetStdioMcpServers
 
 # TODO: Tools and features to explore and implement
@@ -84,7 +85,7 @@ def buildFeatureTester(
     ]
 
     if len(server_params_list):
-        print(server_params_list)
+        # TODO: The MultiMCPTools class is deprecated and will be removed in a future version. Use multiple MCPTools instances instead.
         tools.append(MultiMCPTools(server_params_list=server_params_list))  # ty: ignore[invalid-argument-type]
 
     db = db or getDatabase(db_url=settings.db.dsn, create_schema=True)

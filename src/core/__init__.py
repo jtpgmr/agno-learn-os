@@ -79,9 +79,8 @@ async def initializeAgnoSchema(
     await db._create_all_tables()
 
 
-@lru_cache
-def getResponseModel() -> OpenAILike:
-    ai_settings: AIModelSettings = getSettings().ai
+def getResponseModel(settings: AppSettings | None = None) -> OpenAILike:
+    ai_settings: AIModelSettings = (settings or getSettings()).ai
 
     return OpenAILike(
         id=ai_settings.response_model,
@@ -91,9 +90,8 @@ def getResponseModel() -> OpenAILike:
     )
 
 
-@lru_cache
-def getEmbeddingModel() -> OpenAILikeEmbedder:
-    ai_settings: AIModelSettings = getSettings().ai
+def getEmbeddingModel(settings: AppSettings | None = None) -> OpenAILikeEmbedder:
+    ai_settings: AIModelSettings = (settings or getSettings()).ai
 
     return OpenAILikeEmbedder(
         id=ai_settings.embedding_model,
@@ -102,7 +100,6 @@ def getEmbeddingModel() -> OpenAILikeEmbedder:
     )
 
 
-@lru_cache
 def getVectorStore(
     db_url: str,
     table_name: str,
@@ -114,8 +111,8 @@ def getVectorStore(
 ) -> PgVector:
     return PgVector(
         db_url=db_url,
-        schema=schema_name,
         table_name=table_name,
+        schema=schema_name,
         search_type=search_type,
         embedder=embedding_model or getEmbeddingModel(),
         **kwargs,
@@ -137,7 +134,9 @@ def getKnowledge(
         return Knowledge(
             contents_db=db,
             vector_db=getVectorStore(
-                db.db_url, db.knowledge_table_name, embedding_model=embedding_model
+                db_url=db.db_url or settings.db.dsn,
+                table_name=db.knowledge_table_name,
+                embedding_model=embedding_model,
             ),
         )
 
@@ -145,6 +144,8 @@ def getKnowledge(
     return Knowledge(
         contents_db=db,
         vector_db=getVectorStore(
-            db.db_url, db.knowledge_table_name, embedding_model=embedding_model
+            db_url=db.db_url or settings.db.dsn,
+            table_name=db.knowledge_table_name,
+            embedding_model=embedding_model,
         ),
     )
