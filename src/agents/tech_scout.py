@@ -106,13 +106,6 @@ def buildTechScout(settings: AppSettings) -> Agent:
     if settings.tools.exa_api_key and (exa_token := settings.tools.exa_api_key.get_secret_value()):
         tools_spec.append(AgentSpecTool(toolkit=ExaTools(api_key=exa_token)))
 
-    # try:
-    #     knowledge = getKnowledge(db=db)
-
-    #     tools_spec.append(AgentSpecTool(toolkit=KnowledgeTools(knowledge=knowledge)))
-    # except ValueError:
-    #     pass
-
     agent_spec = AgentSpec(
         metadata=metadata,
         toolkit=AgentSpecToolkit.createToolkit(tools_spec),

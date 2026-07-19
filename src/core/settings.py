@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import (
     DirectoryPath,
@@ -90,6 +90,9 @@ class FeatureTestSettings(BaseSettings):
             self.session_id = str(
                 self.session_id if isinstance(self.session_id, UUID) else UUID(self.session_id)
             )
+        else:
+            self.session_id = str(uuid4())
+
         return self
 
 
