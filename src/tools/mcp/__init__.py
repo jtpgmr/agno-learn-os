@@ -29,7 +29,7 @@ def getPresetStdioMcpServers(settings: AppSettings) -> list[StdioServerParameter
             ),
             # StdioMcpSetupOptions(mcp="docker-mcp"),
             StdioMcpSetupOptions(mcp="markitdown-mcp"),
-            StdioMcpSetupOptions(mcp="mcp-pandoc", args=["--with", "pypandoc-binary"]),
+            # StdioMcpSetupOptions(mcp="mcp-pandoc", args=["--with", "pypandoc-binary"]),
         ]
     }
 
@@ -40,6 +40,7 @@ def getPresetStdioMcpServers(settings: AppSettings) -> list[StdioServerParameter
 
         if mcp_options:
             for options in mcp_options:
+                print(options)
                 server_params_list.append(
                     StdioServerParameters(
                         command=command,

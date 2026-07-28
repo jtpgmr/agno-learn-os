@@ -88,8 +88,9 @@ class AgentSpecToolkit:
         tool_call_limit = 0
         for tool in agent_spec:
             tools.append(tool.applyAllowedTools().renameTools().toolkit)
-            tool_call_limit += 5
+            tool_call_limit += 3
 
+        # raise Exception(tools)
         return AgentSpecToolkit(
             tools=tools, settings=AgentSpecToolkitSettings(tool_call_limit=tool_call_limit)
         )
@@ -100,9 +101,9 @@ class AgentSpecHistorySettings:
     read_chat_history: bool = True
     read_tool_call_history: bool = True
     add_history_to_context: bool = True
-    num_history_runs: int = 20
+    num_history_runs: int = 5
     search_session_history: bool = True
-    num_history_sessions: int = 20
+    num_history_sessions: int = 5
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,8 +115,8 @@ class AgentSpecSessionSettings:
 
 @dataclass(frozen=True, slots=True)
 class AgentSpecOptions:
-    retries: int = 4
-    delay_between_retries: int = 3
+    retries: int = 2
+    delay_between_retries: int = 10
     markdown: bool = True
     telemetry: bool = False
 

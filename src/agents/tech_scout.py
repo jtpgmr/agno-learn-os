@@ -19,18 +19,7 @@ from src.tools import DevToTools
 from src.utils.agent import buildAgent
 
 AGENT_NAME = "Tech Scout"
-STALE_AFTER_DAYS = 365
-
-
-# async def main(agent: Agent) -> str:
-#     settings = getSettings()
-#     session_id: str = str(settings.feature_test.session_id or uuid4())
-
-#     await initializeAgnoSchema(settings=settings)
-
-#     print("The current session id is:\t", session_id, "\n")
-
-#     return await terminalChatSession(agent, session_id=session_id)
+STALE_AFTER_DAYS = 120
 
 
 def buildTechScout(settings: AppSettings) -> Agent:

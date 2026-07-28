@@ -82,6 +82,7 @@ class ToolSettings(BaseSettings):
 class FeatureTestSettings(BaseSettings):
     model_config = SettingsConfigDict({**BASE_SETTINGS_CONFIG, "env_prefix": "FEATURE_TEST__"})
 
+    user_id: str | None = None
     session_id: str | UUID | None = None
 
     @model_validator(mode="after")
