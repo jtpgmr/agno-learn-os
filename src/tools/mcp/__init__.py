@@ -21,7 +21,7 @@ class StdioMcpSetupOptions:
 
 
 def getPresetStdioMcpServers(settings: AppSettings) -> list[StdioServerParameters]:
-    _STDIO_MCP_SERVERS: dict[str, list[StdioMcpSetupOptions]] = {  # noqa N806
+    _STDIO_MCP_SERVERS: dict[str, list[StdioMcpSetupOptions]] = {  # noqa: N806
         "uvx": [
             StdioMcpSetupOptions(
                 mcp="mcp-server-docker",

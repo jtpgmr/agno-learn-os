@@ -83,7 +83,7 @@ class AgentSpecToolkit:
     tools: list[Toolkit] = field(default_factory=list)
     settings: AgentSpecToolkitSettings = field(default=AgentSpecToolkitSettings())
 
-    def createToolkit(agent_spec: list[AgentSpecTool]) -> AgentSpecToolkit:  # noqa N805
+    def createToolkit(agent_spec: list[AgentSpecTool]) -> AgentSpecToolkit:  # noqa: N805
         tools = []
         tool_call_limit = 0
         for tool in agent_spec:

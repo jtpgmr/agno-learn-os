@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Protocol
+from typing import Protocol, Self
 
 import httpx
 
@@ -87,19 +87,28 @@ class AsyncHttpClient:
         self._timeout = timeout
         self._max_retries = max_retries
         self._base_headers = base_headers or {"User-Agent": _DEFAULT_USER_AGENT}
+        self._closed: bool = False
 
         self._auth = auth
 
-    async def __aenter__(self) -> AsyncHttpClient:
+    async def __aenter__(self) -> Self:
         self._getClient()
         return self
 
     async def __aexit__(self, *exc: object) -> None:
         if self._owns_client and self._client is not None:
             await self._client.aclose()
-            self._client = None
+
+        self._client = None
+        self._closed = True
 
     def _getClient(self) -> httpx.AsyncClient:
+        if self._closed:
+            raise Exception(
+                f"{type(self).__name__} for {self.base_url} is closed; "
+                "construct a new instance rather than reusing this one"
+            )
+
         if self._client is None:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
@@ -122,7 +131,7 @@ class AsyncHttpClient:
         client = self._getClient()
         last_exc: httpx.HTTPError | None = None
         method = method.upper()
-        headers = {**(headers or {}), **self._base_headers}
+        headers = {**self._base_headers, **(headers or {})}
         url = self.base_url + endpoint
 
         if self._auth is not None:

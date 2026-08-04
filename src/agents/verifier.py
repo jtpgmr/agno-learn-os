@@ -1,3 +1,4 @@
+from agno.db.async_postgres import AsyncPostgresDb
 from agno.tools.python import PythonTools
 from agno.tools.calculator import CalculatorTools
 from src.utils import getSessionWorkspace
@@ -40,6 +41,7 @@ def buildCodeVerifier(
     session_id: str | None = None,
     tool_spec: list[AgentSpecTool] | None = None,
     apply_preset_tool_spec: bool | None = True,
+    db: AsyncPostgresDb | None = None,
 ) -> Agent:
     metadata = AgentSpecMetadata(
         name=AGENT_NAME,
@@ -87,8 +89,9 @@ def buildCodeVerifier(
     agent_spec = AgentSpec(
         metadata=metadata,
         toolkit=AgentSpecToolkit.createToolkit(tool_spec),
-        history=None,
-        session=AgentSpecSessionSettings(enable_session_summaries=False),
+        # history=None,
+        # session=AgentSpecSessionSettings(enable_session_summaries=False),
+        use_db=True,
     )
 
-    return buildAgent(agent_spec, response_model=getResponseModel(settings))
+    return buildAgent(agent_spec, response_model=getResponseModel(settings), db=db)

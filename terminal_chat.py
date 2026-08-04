@@ -5,7 +5,7 @@ from uuid import uuid4
 from src.agents.verifier import buildCodeVerifier
 
 # from src.agents.tech_scout import buildTechScout
-from src.core import getSettings, initializeAgnoSchema
+from src.core import getSettings, initializeAgnoSchema, getDatabase
 from src.runtimes.cli import terminalChatSession
 from src.tools import DevToTools, getPresetMcpServerUrls, getPresetStdioMcpServers
 from agno.tools.mcp import StreamableHTTPClientParams, MCPTools, SSEClientParams
@@ -36,7 +36,9 @@ async def main() -> str:
             )
         )
 
-    code_verifier = buildCodeVerifier(settings, tool_spec=mcp_tools)
+    db = getDatabase(settings.db.dsn)
+
+    code_verifier = buildCodeVerifier(settings, tool_spec=mcp_tools, db=db, session_id=session_id)
 
     print("The current session id is:\t", session_id, "\n")
 
