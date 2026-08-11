@@ -1,7 +1,10 @@
+from agno.learn import LearningMode
+from agno.tools.shell import ShellTools
+from agno.tools.file import FileTools
 from agno.db.async_postgres import AsyncPostgresDb
 from agno.tools.python import PythonTools
 from agno.tools.calculator import CalculatorTools
-from src.utils import getSessionWorkspace
+from src.utils import getSessionWorkspaceTools, getSessionFileTools, getSessionShellTools
 from agno.tools.workspace import Workspace as WorkspaceTools
 from agno.tools.mcp import MCPTools
 from src.tools.mcp import StdioMcpSetupOptions, AVAILABLE_STDIO_COMMANDS
@@ -16,6 +19,7 @@ from agno.tools.github import GithubTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.reasoning import ReasoningTools
 
+
 from src.core import getResponseModel
 from src.core.settings import AppSettings
 from src.models.agent_spec import (
@@ -24,6 +28,8 @@ from src.models.agent_spec import (
     AgentSpecTool,
     AgentSpecToolkit,
     AgentSpecSessionSettings,
+    AgentSpecMemorySettings,
+    AgentSpecLearningSettings,
 )
 from src.utils.agent import buildAgent
 
@@ -71,17 +77,35 @@ def buildCodeVerifier(
     if apply_preset_tool_spec:
         tool_spec.extend(PRESET_TOOL_SPEC)
 
+    # TODO: Explore if its best to use FileTools and ShellTools instead of one WorkspaceTools in all cases
     if settings.ai.session_data_path:
-        workspace: WorkspaceTools = getSessionWorkspace(
+        excluded_ws_tools: tuple = AgentSpecTool.getExcludedTools(
+            read_only=False, allow_delete=True
+        )
+
+        workspace_tools: WorkspaceTools = getSessionWorkspaceTools(
             settings.ai.session_data_path,
             session_id=session_id,
+            allowed_permissions=list(
+                set(filter(lambda x: x not in excluded_ws_tools, WorkspaceTools.ALL_TOOLS))
+            ),
         )
-        tool_spec.append(AgentSpecTool(toolkit=workspace))
 
-    if settings.tools.github_access_token and (
-        gh_token := settings.tools.github_access_token.get_secret_value()
-    ):
-        tool_spec.append(AgentSpecTool(toolkit=GithubTools(access_token=gh_token)))
+        file_tools = getSessionFileTools(settings.ai.session_data_path)
+        shell_tools = getSessionShellTools(settings.ai.session_data_path)
+
+        tool_spec.extend(
+            [
+                # AgentSpecTool(toolkit=workspace_tools, excluded_keywords=excluded_ws_tools),
+                AgentSpecTool(toolkit=file_tools, excluded_keywords=excluded_ws_tools),
+                AgentSpecTool(toolkit=shell_tools, excluded_keywords=excluded_ws_tools),
+            ]
+        )
+
+    # if settings.tools.github_access_token and (
+    #     gh_token := settings.tools.github_access_token.get_secret_value()
+    # ):
+    #     tool_spec.append(AgentSpecTool(toolkit=GithubTools(access_token=gh_token)))
 
     if settings.tools.exa_api_key and (exa_token := settings.tools.exa_api_key.get_secret_value()):
         tool_spec.append(AgentSpecTool(toolkit=ExaTools(api_key=exa_token)))
@@ -92,6 +116,8 @@ def buildCodeVerifier(
         # history=None,
         # session=AgentSpecSessionSettings(enable_session_summaries=False),
         use_db=True,
+        memory=AgentSpecMemorySettings(enable_user_memories=True),
+        learning=AgentSpecLearningSettings(profile_mode=LearningMode.ALWAYS),
     )
 
     return buildAgent(agent_spec, response_model=getResponseModel(settings), db=db)

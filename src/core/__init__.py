@@ -1,3 +1,7 @@
+from agno.models.base import Model
+from agno.learn import LearningMode, LearningMachine, UserProfileConfig
+from textwrap import dedent
+from agno.memory import MemoryManager
 from functools import lru_cache
 
 from agno.db.postgres import AsyncPostgresDb
@@ -79,11 +83,13 @@ async def initializeAgnoSchema(
     await db._create_all_tables()
 
 
-def getResponseModel(settings: AppSettings | None = None) -> OpenAILike:
+def getResponseModel(
+    settings: AppSettings | None = None, model_name: str | None = None
+) -> OpenAILike:
     ai_settings: AIModelSettings = (settings or getSettings()).ai
 
     return OpenAILike(
-        id=ai_settings.response_model,
+        id=model_name or ai_settings.response_model,
         api_key=ai_settings.api_key.get_secret_value(),
         provider=ai_settings.model_provider,
         base_url=ai_settings.provider_base_url,
@@ -148,4 +154,98 @@ def getKnowledge(
             table_name=db.knowledge_table_name,
             embedding_model=embedding_model,
         ),
+    )
+
+
+_MEMORY_CAPTURE = dedent("""
+    Capture durable engineering context that should change how future runs behave:
+
+    - Stack, framework versions, and tooling preferences
+    - Project, repository, and service names, and what each one is
+    - Architectural decisions already made and the reason behind them
+    - Conventions the user has stated or corrected you on
+    - Recurring constraints (deployment target, provider, data residency)
+
+    Prefer updating an existing memory over creating a near-duplicate one.
+""")
+
+_MEMORY_EXCLUSIONS = dedent("""
+    Never capture: secrets, tokens, connection strings, or credentials of any kind;
+    transient task state ("currently debugging X"); restatements of the current
+    question; anything derivable from the code in context; speculative plans the
+    user has not committed to.
+""")
+
+
+def getMemoryManager(
+    *,
+    db: AsyncPostgresDb | None = None,
+    settings: AppSettings | None = None,
+    model: OpenAILike | None = None,
+) -> MemoryManager:
+    """Return a MemoryManager writing to the configured memory table."""
+    settings = settings or getSettings()
+    db = db or getDatabase(settings.db.dsn)
+
+    return MemoryManager(
+        db=db,
+        model=model or getResponseModel(settings, settings.ai.extraction_model),
+        memory_capture_instructions=_MEMORY_CAPTURE,
+        additional_instructions=_MEMORY_EXCLUSIONS,
+    )
+
+
+def getLearningMachine(
+    *,
+    settings: AppSettings | None = None,
+    db: AsyncPostgresDb | None = None,
+    profile_mode: LearningMode | None = LearningMode.ALWAYS,
+    entity_mode: LearningMode | None = None,
+    learned_knowledge_mode: LearningMode | None = LearningMode.AGENTIC,
+    enable_planning: bool = False,
+    namespace: str | None = None,
+    knowledge: Knowledge | None = None,
+    model: Model | None = None,
+) -> LearningMachine:
+    """Assemble a LearningMachine from the four opt-in stores.
+
+    ``None`` for a mode leaves that store off entirely — no extractor call,
+    no tools, no context injection.
+
+    Modes:
+        ALWAYS      extractor runs every turn, on the response path
+        BACKGROUND  extractor runs off the response path (no added latency)
+        AGENTIC     agent gets write tools and decides when to use them
+        PROPOSE     agent proposes, run pauses for human confirmation
+
+    Args:
+        profile_mode: Single-record "who am I talking to" store.
+        entity_mode: Entity/relationship graph. Searched, not injected.
+        learned_knowledge_mode: Agent-written learnings. ``AGENTIC`` grants
+            ``save_learning`` and ``search_learnings``.
+        enable_planning: Have session context track goal/plan/progress.
+        namespace: Isolation key for entity memory (per tenant or domain).
+        knowledge: Vector store backing learned knowledge.
+        model: Extractor model; defaults to the cheap extraction model.
+    """
+    settings = settings or getSettings()
+    db = db or getDatabase(settings.db.dsn)
+    extraction_model = model or getResponseModel(settings, settings.ai.extraction_model)
+
+    return LearningMachine(
+        db=db,
+        model=extraction_model,
+        knowledge=knowledge or getKnowledge(),
+        user_profile=UserProfileConfig(mode=profile_mode) if profile_mode else None,
+        # entity_memory=(
+        #     EntityMemoryConfig(mode=entity_mode, namespace=namespace) if entity_mode else None
+        # ),
+        # session_context=(
+        #     SessionContextConfig(mode=LearningMode.ALWAYS, enable_planning=True)
+        #     if enable_planning
+        #     else None
+        # ),
+        # learned_knowledge=(
+        #     LearnedKnowledgeConfig(mode=learned_knowledge_mode) if learned_knowledge_mode else None
+        # ),
     )

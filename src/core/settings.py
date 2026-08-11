@@ -57,16 +57,22 @@ class AIModelSettings(BaseSettings):
     api_key: SecretStr
     model_provider: str
     provider_base_url: str
-    response_model: str = "google/gemini-2.5-flash"
+    response_model: str = "cohere/north-mini-code:free"
     embedding_model: str = "openai/text-embedding-3-small"
+    extraction_model: str = response_model
 
     session_data_path: DirectoryPath | None = None
+
+
+class GoogleDriveSettings(BaseSettings):
+    service_account_path: DirectoryPath | None = None
 
 
 class ToolSettings(BaseSettings):
     model_config = SettingsConfigDict({**BASE_SETTINGS_CONFIG, "env_prefix": "TOOLS__"})
     github_access_token: SecretStr | None = None
     exa_api_key: SecretStr | None = None
+    google_drive: GoogleDriveSettings = Field(default_factory=GoogleDriveSettings)
 
     @model_validator(mode="after")
     def validateGithubToken(self) -> ToolSettings:

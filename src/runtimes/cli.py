@@ -1,3 +1,7 @@
+from agno.utils.pprint import pprint_run_response
+from agno.models.response import ToolExecution
+from agno.tools import Toolkit
+from agno.run.agent import RunOutput
 from uuid import uuid4
 
 from agno.agent import Agent
@@ -31,9 +35,27 @@ async def terminalChatSession(
             if prompt.lower() in EXIT_COMMANDS:
                 break
 
-            await agent.aprint_response(
-                prompt, user_id=user_id, session_id=session_id, stream=True, markdown=True
-            )
+            # response = await agent.aprint_response(
+            #     prompt, user_id=user_id, session_id=session_id, stream=True, markdown=True
+            # )
+
+            output: RunOutput = await agent.arun(prompt, user_id=user_id, session_id=session_id)
+
+            while output.is_paused:
+                for t in output.tools_requiring_confirmation:
+                    t: ToolExecution
+                    ans = input(f"Run {t.tool_name}({t.tool_args})? [y/N] ")
+                    t.confirmed = ans.strip().lower() == "y"
+                    if not t.confirmed:
+                        t.tool_call_error = "User declined. Use another approach."
+                output = await agent.acontinue_run(
+                    run_id=output.run_id,
+                    updated_tools=output.tools,
+                    session_id=session_id,
+                    user_id=user_id,
+                )
+
+            pprint_run_response(output, markdown=True)
 
     except KeyboardInterrupt:
         pass

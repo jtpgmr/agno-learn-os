@@ -1,4 +1,5 @@
 from __future__ import annotations
+from agno.learn import LearningMode
 
 from dataclasses import dataclass, field
 
@@ -23,19 +24,32 @@ class AgentSpecTool:
     toolkit: Toolkit
     read_only: bool = True
     allow_delete: bool = False
-    permissions: set[str] | None = None
+    excluded_keywords: tuple | None = None
 
-    def applyAllowedTools(self) -> AgentSpecTool:
+    @staticmethod
+    def getExcludedTools(read_only: bool = True, allow_delete: bool = False) -> tuple:
         from src.models.constants import DELETE_KEYWORDS, WRITE_KEYWORDS
 
         exclude_keywords: tuple = ()
-        toolkit = self.toolkit
 
-        if self.read_only:
+        if read_only:
             exclude_keywords = WRITE_KEYWORDS + DELETE_KEYWORDS
 
-        if not self.read_only and not self.allow_delete:
+        if not read_only and not allow_delete:
             exclude_keywords = DELETE_KEYWORDS
+
+        return exclude_keywords
+
+    def applyAllowedTools(self) -> AgentSpecTool:
+        exclude_keywords: tuple = (
+            self.getExcludedTools(self.read_only, self.allow_delete)
+            if self.excluded_keywords is None
+            else self.excluded_keywords
+        )
+        toolkit = self.toolkit
+
+        if not exclude_keywords:
+            return self
 
         for registry in (toolkit.functions, toolkit.async_functions):
             for name in [n for n in registry if any(w in n.lower() for w in exclude_keywords)]:
@@ -88,7 +102,7 @@ class AgentSpecToolkit:
         tool_call_limit = 0
         for tool in agent_spec:
             tools.append(tool.applyAllowedTools().renameTools().toolkit)
-            tool_call_limit += 3
+            tool_call_limit += 5
 
         # raise Exception(tools)
         return AgentSpecToolkit(
@@ -114,6 +128,22 @@ class AgentSpecSessionSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentSpecMemorySettings:
+    enable_user_memories: bool = False  # extract after every run
+    enable_agentic_memory: bool = True  # give the agent memory tools
+    add_memories_to_context: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class AgentSpecLearningSettings:
+    profile_mode: LearningMode | None = None  # ALWAYS / AGENTIC / None
+    entity_mode: LearningMode | None = None
+    learned_knowledge_mode: LearningMode | None = None  # AGENTIC = save/search tools
+    enable_planning: bool = False
+    namespace: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class AgentSpecOptions:
     retries: int = 2
     delay_between_retries: int = 10
@@ -130,4 +160,6 @@ class AgentSpec:
     skills: Skills | None = None
     history: AgentSpecHistorySettings | None = field(default=AgentSpecHistorySettings())
     session: AgentSpecSessionSettings | None = field(default=AgentSpecSessionSettings())
+    memory: AgentSpecMemorySettings | None = field(default=AgentSpecMemorySettings())
+    learning: AgentSpecLearningSettings | None = None
     options: AgentSpecOptions | None = field(default=AgentSpecOptions())
