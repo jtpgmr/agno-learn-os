@@ -11,7 +11,11 @@ MAX_PROMPT_LENGTH: int = 250_000
 
 
 async def terminalChatSession(
-    agent: Agent, *, user_id: str | None = None, session_id: str | None = None
+    agent: Agent,
+    *,
+    user_id: str | None = None,
+    session_id: str | None = None,
+    # department_code: str, email: str
 ) -> str:
     session_id = session_id or str(uuid4())
     user_id = user_id or str(uuid4())

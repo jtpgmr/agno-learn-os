@@ -1,16 +1,15 @@
-from src.models.agent_spec import AgentSpecTool
 import asyncio
 from uuid import uuid4
+
+from agno.tools.mcp import MCPTools
+from mcp import StdioServerParameters
 
 from src.agents.verifier import buildCodeVerifier
 
 # from src.agents.tech_scout import buildTechScout
-from src.core import getSettings, initializeAgnoSchema, getDatabase
+from src.core import getDatabase, getSettings, initializeAgnoSchema
+from src.models.agent_spec import AgentSpecTool
 from src.runtimes.cli import terminalChatSession
-from src.tools import DevToTools, getPresetMcpServerUrls, getPresetStdioMcpServers
-from agno.tools.mcp import StreamableHTTPClientParams, MCPTools, SSEClientParams
-
-from mcp import StdioServerParameters
 
 
 async def main() -> str:

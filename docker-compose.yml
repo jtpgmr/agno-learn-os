@@ -20,6 +20,7 @@ services:
       - "${DB__PORT:-5432}:5432"
     volumes:
       - ${DB__VOLUME:-agno_pgdata}:/var/lib/postgresql/data
+      # - ./migrations:/docker-entrypoint-initdb.d:ro
     networks:
       - agno_net
     healthcheck:
